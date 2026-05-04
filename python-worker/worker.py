@@ -117,7 +117,7 @@ def update_job_status(job_id: str, status: str, progress: int = None, message: s
         data["message"] = message
     try:
         supabase.table("scraping_jobs").update(data).eq("id", job_id).execute()
-        logger.info("Job [%s] updated -> status: '%s', progress: %s%%", job_id, status, progress)
+        logger.info("Job [%s] updated -> status: '%s', progress: %s%%, message: %s", job_id, status, progress, message)
     except Exception as e:
         logger.error("Failed to update job %s: %s", job_id, e)
 
@@ -155,74 +155,190 @@ def write_heartbeat():
         logger.warning("Failed to write heartbeat file: %s", e)
 
 
+def instagram_auto_login(page) -> bool:
+    """Login otomatis ke Instagram menggunakan username & password dari env"""
+    ig_user = os.getenv("INSTAGRAM_USERNAME", "")
+    ig_pass = os.getenv("INSTAGRAM_PASSWORD", "")
+
+    if not ig_user or not ig_pass:
+        logger.error("INSTAGRAM_USERNAME dan INSTAGRAM_PASSWORD belum diset di .env")
+        return False
+
+    try:
+        logger.info("Mencoba auto-login Instagram sebagai @%s ...", ig_user)
+
+        page.goto("https://www.instagram.com/accounts/login/", wait_until="domcontentloaded", timeout=60000)
+        logger.info("Login page goto done. Current URL: %s", page.url)
+
+        # Wait for JS to render the login form
+        page.wait_for_timeout(5000)
+
+        # Debug: dump page state
+        try:
+            page.screenshot(path="debug_login.png")
+            logger.info("Login page screenshot saved to debug_login.png")
+            page_text = page.evaluate("() => document.body.innerText.substring(0, 2000)")
+            logger.info("=== LOGIN PAGE TEXT ===\n%s\n=== END ===", page_text)
+        except Exception as dbg_err:
+            logger.warning("Debug dump gagal: %s", dbg_err)
+
+        # Try multiple selectors for the username input
+        username_input = page.locator('input[name="username"]')
+        try:
+            username_input.wait_for(state="visible", timeout=5000)
+        except Exception:
+            # Instagram tidak pakai name="username" lagi, cari berdasarkan placeholder/aria-label
+            logger.info("input[name=username] not found, trying alternative selectors...")
+            username_input = page.locator('input[aria-label*="Mobile"], input[aria-label*="Phone"], input[aria-label*="username"], input[aria-label*="email"]').first
+            try:
+                username_input.wait_for(state="visible", timeout=5000)
+            except Exception:
+                # Fallback: ambil input pertama di halaman login
+                logger.info("Alternative selectors juga gagal, mencari semua input...")
+                all_inputs = page.locator('input')
+                count = all_inputs.count()
+                logger.info("Ditemukan %d input fields di halaman", count)
+                if count >= 2:
+                    username_input = all_inputs.nth(0)
+                else:
+                    raise Exception("Tidak bisa menemukan input username")
+
+        # Isi username dengan type() untuk simulasi keyboard asli
+        username_input.click()
+        page.wait_for_timeout(300)
+        page.keyboard.type(ig_user, delay=100)
+
+        # Isi password
+        password_input = page.locator('input[name="password"]')
+        try:
+            password_input.wait_for(state="visible", timeout=5000)
+        except Exception:
+            all_inputs = page.locator('input')
+            password_input = all_inputs.nth(1)
+        password_input.click()
+        page.wait_for_timeout(300)
+        page.keyboard.type(ig_pass, delay=100)
+
+        # Klik tombol login
+        login_btn = page.locator('button[type="submit"]')
+        try:
+            login_btn.click(timeout=3000)
+        except Exception:
+            # Instagram pakai div[role="button"] bukan <button>
+            page.get_by_role("button", name="Log In", exact=True).click(timeout=5000)
+        page.wait_for_timeout(8000)
+
+        # Handle "Save Login Info" dialog
+        try:
+            not_now_btn = page.locator('button', has_text="Not Now").first
+            if not_now_btn.is_visible(timeout=3000):
+                not_now_btn.click()
+                page.wait_for_timeout(2000)
+        except Exception:
+            pass
+
+        # Handle "Turn on Notifications" dialog
+        try:
+            not_now_btn = page.locator('button', has_text="Not Now").first
+            if not_now_btn.is_visible(timeout=3000):
+                not_now_btn.click()
+                page.wait_for_timeout(2000)
+        except Exception:
+            pass
+
+        # Cek apakah login berhasil
+        current_url = page.url
+        if "login" in current_url.lower():
+            logger.error("Login gagal. Masih di halaman login. Cek username/password.")
+            return False
+
+        logger.info("Login Instagram berhasil sebagai @%s", ig_user)
+        return True
+
+    except Exception as e:
+        logger.error("Auto-login gagal: %s", e)
+        return False
+
+
 JS_EXTRACT_DOM_COMMENTS = """
 () => {
     const results = [];
     const seen = new Set();
 
-    // Cari semua elemen yang berisi teks komentar
-    // Instagram menyimpan komentar di berbagai struktur, kita coba semua kemungkinan
-
-    // Pendekatan 1: Cari semua <li> di dalam list komentar
-    const lists = document.querySelectorAll('ul');
-    for (const ul of lists) {
-        const items = ul.querySelectorAll(':scope > li');
-        if (items.length < 1) continue;
-
-        for (const li of items) {
-            // Ambil semua link (username)
-            const links = li.querySelectorAll('a[href^="/"]');
-            let username = '';
-            for (const a of links) {
-                const href = a.getAttribute('href');
-                // Username link format: /username/
-                if (href && href.startsWith('/') && href.length > 2) {
-                    const spans = a.querySelectorAll('span');
-                    for (const s of spans) {
-                        const t = s.textContent.trim();
-                        if (t && t.length > 1 && t.length < 30 && !t.includes(' ') && t === s.textContent.trim()) {
-                            username = t;
-                            break;
-                        }
-                    }
-                    if (username) break;
-                }
-            }
-
-            // Ambil teks komentar - cari span[dir="auto"] atau teks langsung
-            let text = '';
-            const autoSpans = li.querySelectorAll('span[dir="auto"]');
-            for (const span of autoSpans) {
-                const content = span.textContent.trim();
-                if (content && content !== username && content.length > 1 && content.length < 2000) {
-                    text = content;
-                    break;
-                }
-            }
-
-            if (!text) {
-                // Fallback: ambil teks dari span yang bukan link
-                const spans = li.querySelectorAll('span');
-                for (const span of spans) {
-                    const content = span.textContent.trim();
-                    if (content && content !== username && content.length > 3 && content.length < 2000) {
-                        text = content;
-                        break;
-                    }
-                }
-            }
-
-            if (text && !seen.has(text)) {
-                seen.add(text);
-                results.push({ username: username || 'unknown', comment_text: text });
-            }
+    // In English Instagram, every comment has a "Reply" button.
+    // We use this "Reply" text as an anchor to find genuine comment blocks
+    // and avoid capturing captions, sidebars, or footers.
+    const elements = document.querySelectorAll('*');
+    const replyNodes = [];
+    for (const el of elements) {
+        if (el.textContent.trim() === 'Reply' && el.children.length === 0) {
+            replyNodes.push(el);
         }
     }
 
+    for (const node of replyNodes) {
+        let container = node.parentElement;
+        let foundUsername = '';
+        let foundText = '';
+        
+        // Go up up to 8 levels to find the comment container that holds both the username and text
+        for (let i = 0; i < 8; i++) {
+            if (!container) break;
+            
+            // Find username
+            const links = container.querySelectorAll('a[href^="/"]');
+            for (const a of links) {
+                const href = a.getAttribute('href');
+                if (href && href.length > 2 && href.startsWith('/')) {
+                    const un = href.replace(/\\//g, '');
+                    if (!['p', 'explore', 'reels', 'stories'].includes(un)) {
+                        // Check if it's a valid username link (not an icon)
+                        if (a.textContent.trim().toLowerCase() === un.toLowerCase() || a.querySelector('img')) {
+                            foundUsername = un;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (foundUsername) {
+                // Find comment text
+                const autoEls = container.querySelectorAll('span[dir="auto"], div[dir="auto"], span');
+                for (const el of autoEls) {
+                    const t = el.textContent.trim();
+                    if (!t) continue;
+                    
+                    // Filter out metadata and usernames
+                    if (t.toLowerCase() === foundUsername.toLowerCase()) continue;
+                    if (['Verified', 'Reply', 'See Translation', 'Edited', 'Hide replies'].includes(t)) continue;
+                    if (/^[0-9]+[smhdw]$/.test(t)) continue; // 1w, 2h
+                    if (/^[0-9,]+\\s+likes?$/.test(t)) continue; // 19 likes
+                    if (t.includes('View replies')) continue;
+                    
+                    // We found the actual text
+                    foundText = t;
+                    break;
+                }
+            }
+            
+            // If we found both in this container, we stop climbing the DOM tree
+            // to avoid capturing parent comments (if this is a nested reply)
+            if (foundUsername && foundText) {
+                break;
+            }
+            
+            container = container.parentElement;
+        }
+        
+        if (foundUsername && foundText && !seen.has(foundText)) {
+            seen.add(foundText);
+            results.push({ username: foundUsername, comment_text: foundText });
+        }
+    }
+    
     return results;
 }
 """
-
 
 def scrape_comments(job_id: str, url: str, target_comments: int = 100) -> List[Dict]:
     """Scraping komentar menggunakan Playwright dengan dua metode: API intercept + DOM fallback"""
@@ -231,18 +347,41 @@ def scrape_comments(job_id: str, url: str, target_comments: int = 100) -> List[D
     with sync_playwright() as p:
         # Set HEADLESS=false di .env untuk debug (buka browser visual)
         headless = os.getenv("HEADLESS", "true").lower() == "true"
-        session_file = os.getenv("INSTAGRAM_SESSION_FILE", "instagram_session.json")
-        browser = p.chromium.launch(headless=headless)
+        session_file = os.getenv("INSTAGRAM_SESSION_FILE", "/app/data/instagram_session.json")
+        browser = p.chromium.launch(
+            headless=headless,
+            args=[
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+            ],
+        )
 
-        # Gunakan session Instagram jika ada (simpan via login.py)
+        # Gunakan session Instagram jika ada
         context_kwargs = {"user_agent": UA, "viewport": {"width": 1280, "height": 800}}
+        need_login = True
         if os.path.exists(session_file):
             context_kwargs["storage_state"] = session_file
             logger.info("Menggunakan session Instagram dari %s", session_file)
-        else:
-            logger.warning("Tidak ada session Instagram. Jalankan 'python login.py' terlebih dahulu.")
+            need_login = False
         ctx = browser.new_context(**context_kwargs)
+
+        # Stealth: inject anti-detection script on every new page
+        ctx.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+            Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+        """)
+
         page = ctx.new_page()
+
+        # Auto-login jika tidak ada session
+        if need_login:
+            if instagram_auto_login(page):
+                ctx.storage_state(path=session_file)
+                logger.info("Session Instagram disimpan ke %s", session_file)
+            else:
+                logger.warning("Auto-login gagal. Mencoba scraping tanpa login...")
 
         # Metode 1: Intercept API responses
         def on_response(resp):
@@ -300,32 +439,13 @@ def scrape_comments(job_id: str, url: str, target_comments: int = 100) -> List[D
                 () => {
                     const dialog = document.querySelector('div[role="dialog"]');
                     if (dialog) {
-                        // Cari semua ul dan hitung li-nya
-                        const uls = dialog.querySelectorAll('ul');
-                        const ulInfo = [];
-                        for (const ul of uls) {
-                            ulInfo.push('UL with ' + ul.querySelectorAll(':scope > li').length + ' li children');
-                        }
-                        // Cari elemen scrollable
-                        const divs = dialog.querySelectorAll('div');
-                        const scrollables = [];
-                        for (const d of divs) {
-                            const s = window.getComputedStyle(d);
-                            if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && d.scrollHeight > d.clientHeight + 10) {
-                                scrollables.push('scrollable div: scrollHeight=' + d.scrollHeight + ', clientHeight=' + d.clientHeight + ', children=' + d.children.length + ', textLen=' + d.textContent.length);
-                            }
-                        }
-                        // Dump sebagian HTML dari dialog (bagian teks komentar)
-                        const allText = dialog.innerText.substring(0, 5000);
-                        return JSON.stringify({ulInfo, scrollables, allText}, null, 2);
+                        return 'Dialog found';
                     }
                     return 'No dialog found';
                 }
             """)
             if debug_html == 'No dialog found':
                 logger.info("Instagram loaded post in full-page mode (no dialog). Continuing extraction on main page.")
-            else:
-                logger.info("=== DEBUG HTML (Dialog Mode) ===\n%s\n=== END DEBUG ===", debug_html)
         except Exception as e:
             logger.warning("Debug dump gagal: %s", e)
 
@@ -388,18 +508,6 @@ def scrape_comments(job_id: str, url: str, target_comments: int = 100) -> List[D
                     page.evaluate(JS_CLICK_VIEW_COMMENTS)
                 except:
                     pass
-                # DOM fallback
-                logger.info("Mencoba ekstraksi DOM fallback (round %d)...", i)
-                try:
-                    dom_comments = page.evaluate(JS_EXTRACT_DOM_COMMENTS)
-                    if dom_comments:
-                        for c in dom_comments:
-                            key = f"{c['username']}:{c['comment_text']}"
-                            if key not in comments:
-                                comments[key] = c
-                        logger.info("DOM fallback: terambil %d komentar", len(comments))
-                except Exception as e:
-                    logger.debug("DOM fallback gagal: %s", e)
 
             if len(comments) > prev_count:
                 stale = 0
@@ -412,37 +520,21 @@ def scrape_comments(job_id: str, url: str, target_comments: int = 100) -> List[D
                     logger.warning("Mentok. Scroll dihentikan.")
                     break
 
-        # Fallback akhir: jika masih 0 komentar, coba DOM extraction satu kali lagi
-        if len(comments) == 0:
-            logger.info("API intercept gagal. Mencoba DOM extraction penuh...")
-
-            # Debug: simpan screenshot dan dump HTML
-            try:
-                page.screenshot(path="debug_screenshot.png", full_page=False)
-                logger.info("Screenshot disimpan ke debug_screenshot.png")
-
-                # Dump teks halaman untuk debug
-                page_text = page.evaluate("() => document.body.innerText.substring(0, 3000)")
-                logger.info("=== PAGE TEXT (3000 chars) ===\n%s\n=== END ===", page_text)
-
-                # Dump semua URL response yang tertangkap
-                all_urls = page.evaluate("""
-                    () => performance.getEntriesByType('resource').map(e => e.name).filter(u => u.includes('graphql') || u.includes('api') || u.includes('comment')).join('\\n')
-                """)
-                logger.info("=== API URLs ===\n%s\n=== END ===", all_urls)
-            except Exception as e:
-                logger.warning("Debug dump gagal: %s", e)
-
-            try:
-                dom_comments = page.evaluate(JS_EXTRACT_DOM_COMMENTS)
-                if dom_comments:
-                    for c in dom_comments:
-                        key = f"{c['username']}:{c['comment_text']}"
-                        if key not in comments:
-                            comments[key] = c
-                    logger.info("DOM extraction: terambil %d komentar", len(comments))
-            except Exception as e:
-                logger.warning("DOM extraction gagal: %s", e)
+        # Selalu jalankan DOM extraction di akhir untuk menangkap komentar yang di-load di HTML awal
+        # atau komentar yang terlewat oleh API interception
+        logger.info("Menjalankan DOM extraction final...")
+        try:
+            dom_comments = page.evaluate(JS_EXTRACT_DOM_COMMENTS)
+            if dom_comments:
+                added = 0
+                for c in dom_comments:
+                    key = f"{c['username']}:{c['comment_text']}"
+                    if key not in comments:
+                        comments[key] = c
+                        added += 1
+                logger.info("Final DOM extraction: +%d komentar (total %d)", added, len(comments))
+        except Exception as e:
+            logger.warning("Final DOM extraction gagal: %s", e)
 
         browser.close()
 
