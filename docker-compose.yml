@@ -1,0 +1,8 @@
+services:
+  worker:
+    build:
+      context: ./python-worker
+      dockerfile: Dockerfile
+    env_file:
+      - ./python-worker/.env
+    restart: unless-stopped

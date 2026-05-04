@@ -1,0 +1,6 @@
+{
+  "name": "Social Media Comment Scraper & Analyzer",
+  "description": "SaaS application to scrape and analyze social media comments, built with Next.js, Supabase, and AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
