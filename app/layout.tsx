@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { LanguageProvider } from '@/components/LanguageContext';
 import './globals.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -18,7 +19,9 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
     <html lang="id" className={jakarta.variable}>
       <body className="antialiased font-sans bg-white text-slate-900 overflow-x-hidden selection:bg-indigo-600 selection:text-white" suppressHydrationWarning>
         <ErrorBoundary>
-          {children}
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
         </ErrorBoundary>
       </body>
     </html>
