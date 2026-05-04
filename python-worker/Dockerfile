@@ -11,15 +11,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers
-RUN playwright install chromium
+# Install Playwright system deps first
 RUN playwright install-deps chromium
+
+# Create non-root user, install browsers as that user
+RUN useradd -m -s /bin/bash worker && mkdir -p /app/data && chown -R worker:worker /app
+USER worker
+
+# Install Playwright browsers as worker user
+RUN playwright install chromium
 
 # Copy worker code
 COPY worker.py .
-
-# Create non-root user
-RUN useradd -m -s /bin/bash worker
-USER worker
 
 CMD ["python", "worker.py"]
