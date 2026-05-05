@@ -1,12 +1,41 @@
 'use client';
 
 import { CommentData } from '@/lib/types';
+import { useLanguage } from '@/components/LanguageContext';
 
 interface SentimentChartProps {
   comments: CommentData[];
 }
 
+const content = {
+  id: {
+    distSentiment: "Distribusi Sentimen",
+    pos: "Positif",
+    neg: "Negatif",
+    neu: "Netral",
+    total: "Total Komentar:",
+    distAccount: "Distribusi Tipe Akun",
+    gen: "Asli",
+    sus: "Mencurigakan",
+    buz: "Buzzer"
+  },
+  en: {
+    distSentiment: "Sentiment Distribution",
+    pos: "Positive",
+    neg: "Negative",
+    neu: "Neutral",
+    total: "Total Comments:",
+    distAccount: "Account Type Distribution",
+    gen: "Genuine",
+    sus: "Suspicious",
+    buz: "Buzzer"
+  }
+};
+
 export default function SentimentChart({ comments }: SentimentChartProps) {
+  const { lang } = useLanguage();
+  const t = content[lang];
+  
   const total = comments.length;
   if (total === 0) return null;
 
@@ -27,13 +56,13 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
       {/* Sentimen */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
         <h3 className="text-sm font-semibold text-slate-500 mb-6">
-          Distribusi Sentimen
+          {t.distSentiment}
         </h3>
         <div className="space-y-5">
           {/* Positive */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-emerald-700">Positif</span>
+              <span className="text-sm font-medium text-emerald-700">{t.pos}</span>
               <span className="text-sm tabular-nums text-slate-400">{positive} ({pct(positive)}%)</span>
             </div>
             <div className="w-full h-2.5 bg-emerald-100 rounded-full overflow-hidden">
@@ -43,7 +72,7 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
           {/* Negative */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-red-700">Negatif</span>
+              <span className="text-sm font-medium text-red-700">{t.neg}</span>
               <span className="text-sm tabular-nums text-slate-400">{negative} ({pct(negative)}%)</span>
             </div>
             <div className="w-full h-2.5 bg-red-100 rounded-full overflow-hidden">
@@ -53,7 +82,7 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
           {/* Neutral */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-slate-600">Netral</span>
+              <span className="text-sm font-medium text-slate-600">{t.neu}</span>
               <span className="text-sm tabular-nums text-slate-400">{neutral} ({pct(neutral)}%)</span>
             </div>
             <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -62,20 +91,20 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
           </div>
         </div>
         <div className="mt-6 pt-4 border-t border-slate-100">
-          <span className="text-xs text-slate-400">Total Komentar: {total}</span>
+          <span className="text-xs text-slate-400">{t.total} {total}</span>
         </div>
       </div>
 
       {/* Account Type */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8">
         <h3 className="text-sm font-semibold text-slate-500 mb-6">
-          Distribusi Tipe Akun
+          {t.distAccount}
         </h3>
         <div className="space-y-5">
           {/* Genuine */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-blue-700">Genuine</span>
+              <span className="text-sm font-medium text-blue-700">{t.gen}</span>
               <span className="text-sm tabular-nums text-slate-400">{genuine} ({pct(genuine)}%)</span>
             </div>
             <div className="w-full h-2.5 bg-blue-100 rounded-full overflow-hidden">
@@ -85,7 +114,7 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
           {/* Suspicious */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-amber-700">Mencurigakan</span>
+              <span className="text-sm font-medium text-amber-700">{t.sus}</span>
               <span className="text-sm tabular-nums text-slate-400">{suspicious} ({pct(suspicious)}%)</span>
             </div>
             <div className="w-full h-2.5 bg-amber-100 rounded-full overflow-hidden">
@@ -95,7 +124,7 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
           {/* Buzzer */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-purple-700">Buzzer</span>
+              <span className="text-sm font-medium text-purple-700">{t.buz}</span>
               <span className="text-sm tabular-nums text-slate-400">{buzzer} ({pct(buzzer)}%)</span>
             </div>
             <div className="w-full h-2.5 bg-purple-100 rounded-full overflow-hidden">
@@ -104,7 +133,7 @@ export default function SentimentChart({ comments }: SentimentChartProps) {
           </div>
         </div>
         <div className="mt-6 pt-4 border-t border-slate-100">
-          <span className="text-xs text-slate-400">Total Komentar: {total}</span>
+          <span className="text-xs text-slate-400">{t.total} {total}</span>
         </div>
       </div>
     </div>
