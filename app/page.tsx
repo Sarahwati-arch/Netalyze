@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Play, Instagram, Loader2, Link2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Play, Instagram, Loader2, Link2, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 import ProgressTracker from '@/components/ProgressTracker';
 import { useLanguage } from '@/components/LanguageContext';
 
 const content = {
   id: {
     docs: 'Dokumentasi',
+    history: 'Riwayat',
     badge: 'Antarmuka Scraping Otomatis',
     title: 'Analisis Sentimen',
     subtitle: 'Komentar Instagram',
@@ -27,6 +28,7 @@ const content = {
   },
   en: {
     docs: 'Documentation',
+    history: 'History',
     badge: 'Automated Scraping Interface',
     title: 'Sentiment Analysis',
     subtitle: 'Instagram Comments',
@@ -128,6 +130,10 @@ export default function Home() {
 
           <Link href="/docs" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors hidden sm:block">
             {t.docs}
+          </Link>
+          <Link href="/history" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors hidden sm:flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            {t.history}
           </Link>
         </div>
       </nav>

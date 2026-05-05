@@ -1,12 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Instagram, ArrowLeft, BookOpen, BarChart3, MessageCircle, Info } from 'lucide-react';
+import { Instagram, ArrowLeft, BookOpen, BarChart3, MessageCircle, Info, Clock } from 'lucide-react';
 import { useLanguage } from '@/components/LanguageContext';
 
 const content = {
   id: {
-    back: 'Kembali',
+    back: 'Beranda',
+    history: 'Riwayat',
     title: 'Panduan Penggunaan',
     desc: 'Pelajari cara menggunakan Netalyze untuk mengekstraksi dan menganalisis sentimen dari komentar Instagram secara otomatis.',
     sec1: '1. Cara Memulai Analisis',
@@ -44,7 +45,8 @@ const content = {
     sum3Desc: 'Sorotan terhadap beberapa komentar aktual yang sangat merepresentasikan opini mayoritas positif atau negatif.'
   },
   en: {
-    back: 'Back',
+    back: 'Home',
+    history: 'History',
     title: 'User Guide',
     desc: 'Learn how to use Netalyze to automatically extract and analyze sentiments from Instagram comments.',
     sec1: '1. How to Start Analysis',
@@ -90,13 +92,17 @@ export default function DocumentationPage() {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
       {/* Nav */}
-      <nav className="sticky top-0 z-50 w-full px-6 sm:px-12 py-4 flex justify-between items-center bg-white/80 backdrop-blur-md border-b border-slate-100">
+      <nav className="sticky top-0 z-50 w-full px-6 sm:px-12 py-4 flex justify-between items-center bg-white/60 backdrop-blur-xl border-b border-white/50">
         <Link href="/" className="flex items-center gap-3 group">
-          <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:text-slate-900 transition-colors" />
-          <span className="font-medium text-sm text-slate-600 group-hover:text-slate-900 transition-colors">{t.back}</span>
+          <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-all duration-300">
+            <Instagram className="h-5 w-5" />
+          </div>
+          <span className="font-bold text-lg tracking-tight text-slate-900">Netalyze</span>
         </Link>
+
         <div className="flex items-center gap-6">
-          <div className="flex items-center bg-slate-100/50 rounded-full p-1 border border-slate-200/50">
+          {/* Language Toggle */}
+          <div className="flex items-center bg-slate-100/50 rounded-full p-1 border border-slate-200/50 backdrop-blur-sm">
             <button 
               onClick={() => setLang('id')}
               className={`px-3 py-1 text-xs font-bold rounded-full transition-all duration-300 ${lang === 'id' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
@@ -110,12 +116,15 @@ export default function DocumentationPage() {
               ENG
             </button>
           </div>
-          <div className="flex items-center gap-3 hidden sm:flex">
-            <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 to-indigo-500 rounded-lg flex items-center justify-center text-white shadow-sm">
-              <Instagram className="h-3.5 w-3.5" />
-            </div>
-            <span className="font-semibold text-sm text-slate-900">Netalyze</span>
-          </div>
+
+          <Link href="/history" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors hidden sm:flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            {t.history}
+          </Link>
+          <Link href="/" className="text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors hidden sm:flex items-center gap-1.5">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t.back}
+          </Link>
         </div>
       </nav>
 
