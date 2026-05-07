@@ -13,7 +13,7 @@ const content = {
     badge: 'Antarmuka Scraping Otomatis',
     title: 'Analisis Sentimen',
     subtitle: 'Komentar Instagram',
-    desc: 'Masukkan URL postingan Instagram. AI kami akan mengumpulkan komentar dan menganalisis sentimen untuk Anda dalam hitungan detik.',
+    desc: 'Masukkan URL postingan Instagram. AI kami akan mengumpulkan komentar dan menganalisis sentimen untuk Anda.',
     label: 'URL Target Instagram',
     processing: 'Sedang Memproses',
     start: 'Mulai Analisis',
@@ -22,9 +22,6 @@ const content = {
     errorTitle: 'Kesalahan Sistem',
     errorUrl: 'URL harus berasal dari instagram.com. Contoh: https://www.instagram.com/p/...',
     errorDefault: 'Terjadi kesalahan saat menyimpan data.',
-    instancePrefix: 'Instance Supabase:',
-    instanceActive: 'Aktif',
-    instanceError: 'Kesalahan',
   },
   en: {
     docs: 'Documentation',
@@ -32,7 +29,7 @@ const content = {
     badge: 'Automated Scraping Interface',
     title: 'Sentiment Analysis',
     subtitle: 'Instagram Comments',
-    desc: 'Enter an Instagram post URL. Our AI will scrape comments and analyze their sentiment for you in seconds.',
+    desc: 'Enter an Instagram post URL. Our AI will scrape comments and analyze their sentiment for you.',
     label: 'Target Instagram URL',
     processing: 'Processing',
     start: 'Start Analysis',
@@ -41,9 +38,6 @@ const content = {
     errorTitle: 'System Error',
     errorUrl: 'URL must be from instagram.com. Example: https://www.instagram.com/p/...',
     errorDefault: 'An error occurred while saving data.',
-    instancePrefix: 'Supabase Instance:',
-    instanceActive: 'Active',
-    instanceError: 'Error',
   }
 };
 
@@ -110,17 +104,17 @@ export default function Home() {
           </div>
           <span className="font-bold text-lg tracking-tight text-slate-900">Netalyze</span>
         </Link>
-        
+
         <div className="flex items-center gap-6">
           {/* Language Toggle */}
           <div className="flex items-center bg-slate-100/50 rounded-full p-1 border border-slate-200/50 backdrop-blur-sm">
-            <button 
+            <button
               onClick={() => setLang('id')}
               className={`px-3 py-1 text-xs font-bold rounded-full transition-all duration-300 ${lang === 'id' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
               IDN
             </button>
-            <button 
+            <button
               onClick={() => setLang('en')}
               className={`px-3 py-1 text-xs font-bold rounded-full transition-all duration-300 ${lang === 'en' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
             >
@@ -151,7 +145,7 @@ export default function Home() {
           </div>
 
           <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tighter leading-[1.1] text-slate-900 drop-shadow-sm">
-            {t.title} <br /> 
+            {t.title} <br />
             <span className="bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 bg-clip-text text-transparent pb-4 pr-2 inline-block">
               {t.subtitle}
             </span>
@@ -231,15 +225,7 @@ export default function Home() {
             )}
           </form>
 
-          {/* Instance Status */}
-          <div className="mt-10 flex justify-between items-center pt-8 border-t border-slate-100/50">
-            <div className="flex items-center gap-2.5 bg-slate-50/50 px-3 py-1.5 rounded-full border border-slate-100">
-              <div className={`w-2 h-2 rounded-full ${status === 'error' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : status === 'loading' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)] animate-pulse' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'}`}></div>
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                {t.instancePrefix} {status === 'error' ? t.instanceError : t.instanceActive}
-              </span>
-            </div>
-          </div>
+
         </div>
 
         {/* Metadata Footer */}
